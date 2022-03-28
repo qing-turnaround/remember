@@ -43,7 +43,7 @@ var (
 	FileSuffix = ".md"
 	// 记忆时间，分别是当天，一天，三天后，一个星期后，一个月后
 	logicNums = []int{0, 1, 3, 7, 31}
-	reader = new(bufio.Reader)
+	reader = bufio.NewReader(os.Stdin)
 )
 
 func FileIsExist(fileName string, date string) bool {

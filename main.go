@@ -24,5 +24,9 @@ func main() {
 	defer mysql.Close()
 
 	markdown.Logic(local)
+	go func() {
+		fmt.Println("s")
+	}()
+
 }
 

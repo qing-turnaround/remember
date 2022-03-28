@@ -25,12 +25,12 @@ func Init() (err error) {
 	if err != nil {
 		return err
 	}
-	// db.SingularTable(true) 让grom转义struct名字的时候不用加上s
+	// 让grom转义struct名字的时候不用加上s
 	db.SingularTable(true)
 	// 创建表，只需要一次
-	if err = db.CreateTable(&model.Job{}).Error; err != nil {
-		fmt.Println("Error creating table", err.Error())
-	}
+	// if err = db.CreateTable(&model.Job{}).Error; err != nil {
+	// 	fmt.Println("Error creating table", err.Error())
+	// }
 
 	return nil
 }
@@ -59,7 +59,6 @@ func FindMaxDateCategoryOffset(date string, category string) *model.Job {
 	return job
 }
 
-
 func FindNotCategoryDownJob(date string, categoryRank int64) []model.Job {
 	var allJob []model.Job
 	db.Where("date = ? and category_rank > ?", date, categoryRank).
@@ -69,7 +68,7 @@ func FindNotCategoryDownJob(date string, categoryRank int64) []model.Job {
 
 func UpdateJob(job model.Job) error {
 	return db.Model(job).Update(job).Error
- }
+}
 
 func Close() {
 	_ = db.Close()
