@@ -8,6 +8,7 @@ import (
 	"remember/model"
 	"remember/mysql"
 	"strings"
+	"sync"
 	"time"
 )
 
@@ -30,7 +31,7 @@ series:
 const headerOffset = len(fileHeader)
 
 var (
-	tempFile = "E:/记忆曲线/temp.md"
+	tempFile = FilePrefix + "temp" + FileSuffix
 	// 一天的时间
 	oneDay = time.Hour * 24
 	// 回车换行符
@@ -39,11 +40,15 @@ var (
 	categoryChar = "## "
 	// 文件路径前缀
 	FilePrefix = "D:/gozhugeqing/src/blog/demo/content/en/write/"
+	// FilePrefix = "E:/记忆曲线/"
 	// 文件名称后缀
 	FileSuffix = ".md"
 	// 记忆时间，分别是当天，一天，三天后，一个星期后，一个月后
 	logicNums = []int{0, 1, 3, 7, 31}
 	reader = bufio.NewReader(os.Stdin)
+	// 并发同步
+	once = sync.WaitGroup{}
+	mutex = sync.Mutex{}
 )
 
 func FileIsExist(fileName string, date string) bool {
@@ -62,6 +67,7 @@ func FileIsExist(fileName string, date string) bool {
 
 // writeFile 将任务输入进文件（\r\n为两个字符）
 func write(date, fileName, category, task string, fileIsExist bool) {
+	defer once.Done() // 减少一次
 	// 重新打开文件
 	io, _ := os.OpenFile(fileName, os.O_RDWR, 7777)
 	defer io.Close()
@@ -138,19 +144,21 @@ func write(date, fileName, category, task string, fileIsExist bool) {
 			allJob := mysql.FindNotCategoryDownJob(date, oldJob.CategoryRank)
 			for _, v := range allJob {
 				v.Offset += addOffset
-				fmt.Println(v)
 				mysql.UpdateJob(v)
 			}
 		}
 	}
 
+	fmt.Println(fileName)
 }
 
 
 // Logic 如何复习的逻辑
 func Logic(local time.Time) {
+
 	// 一直处理用户输入，除非用户主动退出
 	for true {
+		once.Add(len(logicNums))
 		var category, task string
 		fmt.Printf("请您输入要记忆任务的类别：")
 		category, _ = reader.ReadString('\n')  // 使用 *bufio.Reader 来读取空格句子
@@ -160,8 +168,9 @@ func Logic(local time.Time) {
 			timeString := timeToString(local.Add(time.Duration(v) * oneDay))
 			fileName := FilePrefix + timeString + FileSuffix
 			fileIsExist := FileIsExist(fileName, timeString)
-			write(timeString, fileName, category, task, fileIsExist)
+			go write(timeString, fileName, category, task, fileIsExist)
 		}
+		once.Wait() // 等待全部执行完成
 	}
 }
 
@@ -187,6 +196,8 @@ func timeToString(t time.Time) string {
 }
 
 func WriteInsert(f1 *os.File, offset int64, content, fileName string) {
+	mutex.Lock()
+	defer mutex.Unlock()
 	// 读取文件的buf
 	f1.Seek(0, 0)
 	buf := make([]byte, offset)
@@ -196,7 +207,7 @@ func WriteInsert(f1 *os.File, offset int64, content, fileName string) {
 	f1.Close()
 
 	appendString := string(buf) + content + string(oldContent)
-	fmt.Println(appendString)
+	// fmt.Println(appendString)
 	// 创建临时文件（并写入内容）
 	CreateFile(tempFile, appendString)
 
